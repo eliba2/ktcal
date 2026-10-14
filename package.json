@@ -1,0 +1,38 @@
+{
+  "name": "ktcal",
+  "version": "0.1.0",
+  "description": "Terminal Google Calendar viewer with vim keys (month / week / day)",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "ktcal": "dist/cli.js"
+  },
+  "scripts": {
+    "dev": "tsx src/cli.tsx",
+    "build": "tsc && chmod +x dist/cli.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "screenshots": "FORCE_COLOR=3 tsx scripts/screenshot.tsx docs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.17.0",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@clack/prompts": "0.11.0",
+    "google-auth-library": "10.9.1",
+    "ink": "6.8.0",
+    "luxon": "3.7.2",
+    "react": "19.1.9",
+    "string-width": "7.2.0"
+  },
+  "devDependencies": {
+    "@types/luxon": "3.7.1",
+    "@types/node": "22.20.5",
+    "@types/react": "19.1.17",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  }
+}

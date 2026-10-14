@@ -1,0 +1,6 @@
+node_modules/
+dist/
+# OAuth client secret / tokens must never land here (they live in ~/.config/ktcal),
+# but guard against stray copies anyway.
+client_secret*.json
+token.json
