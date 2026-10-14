@@ -104,15 +104,14 @@ export function App({ store, subscribe, settings, calendars, initialView = 'mont
       setReturnView(null);
     };
 
-    // Ctrl chords first: Ink reports C-l / C-o as input 'l' / 'o' with key.ctrl.
-    // C-h arrives as backspace (\b); the Backspace key itself sends DEL (key.delete).
+    // Ctrl chords first: Ink reports C-d / C-u / C-o as input 'd' / 'u' / 'o' with key.ctrl.
     if (key.ctrl && input === 'o') {
       if (returnView) {
         setView(returnView);
         setReturnView(null);
       }
-    } else if (key.backspace || (key.ctrl && input === 'h')) moveCursor(shiftPeriod(view, cursor, -n));
-    else if (key.ctrl && input === 'l') moveCursor(shiftPeriod(view, cursor, n));
+    } else if (key.ctrl && input === 'u') moveCursor(shiftPeriod(view, cursor, -n));
+    else if (key.ctrl && input === 'd') moveCursor(shiftPeriod(view, cursor, n));
     else if (key.ctrl) return;
     else if (input === 'q') exit();
     else if (input === 'h' || key.leftArrow) moveCursor(cursor.minus({ days: n }));
@@ -222,7 +221,7 @@ function StatusBar(p: { width: number; loading: boolean; error: string | null; p
 const HELP: [string, string][] = [
   ['h / l', 'previous / next day'],
   ['j / k', 'month: next / previous week · week/day: next / previous event'],
-  ['C-h / C-l  [ ]', 'previous / next month, week or day'],
+  ['C-u / C-d  [ ]', 'previous / next month, week or day'],
   ['gg / G', 'first / last day of the period'],
   ['0 / $', 'start / end of the week'],
   ['t', 'today'],

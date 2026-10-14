@@ -50,7 +50,7 @@ Third-party connections. Nothing else is written to disk; events are cached in m
 |---|---|
 | `h` / `l` | previous / next day |
 | `j` / `k` | month: next / previous week · week & day: next / previous event |
-| `Ctrl-h` / `Ctrl-l`, `[` / `]` | previous / next month, week or day |
+| `Ctrl-u` / `Ctrl-d`, `[` / `]` | previous / next month, week or day |
 | `gg` / `G` | first / last day of the period |
 | `0` / `$` | start / end of the week |
 | `t` | today |
