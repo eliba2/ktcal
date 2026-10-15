@@ -7,6 +7,7 @@ import { describeWhen, toDraft, type Values } from '../src/form.js';
 import { withGuests } from '../src/google.js';
 import { parseDate, parseTime } from '../src/parse.js';
 import { continueAfter, endBefore, ruleCount } from '../src/recurrence.js';
+import { eventLinks, hyperlink } from '../src/links.js';
 
 const today = DateTime.fromISO('2026-10-15'); // a Thursday
 const noKey = {} as Key;
@@ -165,5 +166,36 @@ describe('recurrence', () => {
     expect(ruleCount(['RRULE:FREQ=DAILY'])).toBeNull();
     expect(continueAfter(weekly, 3)).toEqual(['RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=7', weekly[1]]);
     expect(continueAfter(['RRULE:FREQ=DAILY;UNTIL=20261231'], 3)).toEqual(['RRULE:FREQ=DAILY;UNTIL=20261231']);
+  });
+});
+
+describe('eventLinks', () => {
+  const event = (over: Partial<CalEvent>): CalEvent => ({
+    key: 'k', calendarId: 'c', id: 'i', title: 't', color: '#000000', declined: false, allDay: false, mine: true, recurring: false,
+    start: today, end: today.plus({ hours: 1 }), ...over,
+  });
+
+  it('lists the meeting first, then location and description links, once each', () => {
+    const links = eventLinks(event({
+      meetLink: 'https://meet.google.com/abc-defg-hij',
+      location: 'Zoom: https://zoom.us/j/123?pwd=x&amp;y=1',
+      description:
+        '<p>Join: <a href="https://meet.google.com/abc-defg-hij">meet</a>. Doc: ' +
+        '<a href="https://docs.google.com/d/1?a=1&amp;b=2">notes</a> (see https://example.com/x).</p>',
+    }));
+    expect(links).toEqual([
+      'https://meet.google.com/abc-defg-hij',
+      'https://zoom.us/j/123?pwd=x&y=1',
+      'https://docs.google.com/d/1?a=1&b=2',
+      'https://example.com/x',
+    ]);
+  });
+
+  it('has none for an event without links, and skips non-web ones', () => {
+    expect(eventLinks(event({ description: 'Call tel:+972-3-555 or mailto:a@x.com' }))).toEqual([]);
+  });
+
+  it('wraps text as a clickable link', () => {
+    expect(hyperlink('https://x.io', 'x')).toBe('\x1b]8;;https://x.io\x07x\x1b]8;;\x07');
   });
 });

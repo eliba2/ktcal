@@ -89,6 +89,7 @@ Third-party connections. Nothing else is written to disk; events are cached in m
 | `Enter` | event details (or zoom into the day) |
 | `Ctrl-o` | back to the view `Enter` zoomed in from (one level) |
 | `o` / `O` | open event in Google Calendar / join its video meeting |
+| `1`–`9` | in the details view: open the numbered link (❶ meeting, then links from the location and description; they're also clickable in kitty) |
 | `a` | quick add on the selected day, e.g. `Lunch with Dana 1pm` *(editing)* |
 | `n` / `e` | new event on the selected day / edit the selected event *(editing)* |
 | `dd` | delete the selected event, after a y/n (the first `d` also switches to day view) *(editing)* |

@@ -3,6 +3,7 @@ import { Box, Text, useApp, useInput, useStdout } from 'ink';
 import { DateTime } from 'luxon';
 import { useEffect, useMemo, useReducer, useState } from 'react';
 import { truncate } from './canvas.js';
+import { BADGES, displayUrl, eventLinks, hyperlink } from './links.js';
 import { htmlToText, wrap } from './text.js';
 import type { CalendarRef, Settings } from './config.js';
 import { periodBounds, shiftPeriod, title, visibleDays, type View } from './dates.js';
@@ -257,6 +258,10 @@ export function App({ store, subscribe, settings, calendars, initialView = 'mont
       if (key.escape || input === 'q' || key.return || (overlay === 'help' && input === '?')) setOverlay(null);
       else if (overlay === 'detail' && input === 'o' && selected?.htmlLink) openUrl(selected.htmlLink);
       else if (overlay === 'detail' && input === 'O' && selected?.meetLink) openUrl(selected.meetLink);
+      else if (overlay === 'detail' && selected && /^[1-9]$/.test(input)) {
+        const url = eventLinks(selected)[Number(input) - 1];
+        if (url) openUrl(url);
+      }
       return;
     }
 
@@ -473,6 +478,7 @@ const HELP: [string, string][] = [
   ['Enter', 'event details (or open the day)'],
   ['C-o', 'back to the view Enter came from'],
   ['o / O', 'open event in Google Calendar / join the meeting'],
+  ['1–9', 'details view: open the numbered link'],
   ['a', 'quick add on the selected day ("Lunch 1pm")'],
   ['n / e', 'new event on the selected day / edit the selected one'],
   ['dd', 'delete the selected event (asks first)'],
@@ -512,12 +518,12 @@ function Detail(p: { event: CalEvent; calendars: CalendarRef[]; height: number; 
     ['When', timeRange(e, true)],
     ['Calendar', calendar],
     ['Where', e.location],
-    ['Meeting', e.meetLink],
     ['Organizer', e.organizer],
     ['Guests', e.attendees?.length ? `${e.attendees.length} (${going} accepted)` : undefined],
     ['You', e.response ? RESPONSE_LABEL[e.response] : undefined],
   ];
-  const fixed = rows.filter(([, v]) => v).length + 5;
+  const links = eventLinks(e);
+  const fixed = rows.filter(([, v]) => v).length + links.length + 5;
   const description = htmlToText(e.description ?? '')
     .split('\n')
     .flatMap((line) => wrap(line, width - 6))
@@ -535,14 +541,33 @@ function Detail(p: { event: CalEvent; calendars: CalendarRef[]; height: number; 
             {truncate(v!, width - 16)}
           </Text>
         ))}
+      {/* Numbered for the 1–9 keys, and clickable (OSC 8) in terminals that support it. */}
+      {links.map((url, i) => (
+        <Text key={url}>
+          <Text dimColor>{(i === 0 ? 'Links' : '').padEnd(10)}</Text>
+          <Text color="cyan">{hyperlink(url, BADGES[i] ?? ' ')}</Text>
+          {' ' + hyperlink(url, truncate(displayUrl(url), width - 18))}
+        </Text>
+      ))}
       {description.length > 0 && <Text> </Text>}
       {description.map((line, i) => (
         <Text key={i}>{line}</Text>
       ))}
       <Box flexGrow={1} />
       <Text dimColor>
-        o open in Google Calendar · O join meeting
-        {p.editable ? (e.response ? ' · Y/N/M accept/decline/maybe' : '') + (e.mine ? ' · e edit · dd delete' : '') : ''} · Esc close
+        {truncate(
+          [
+            links.length > 1 ? `1–${Math.min(9, links.length)} open link` : links.length ? '1 open link' : '',
+            'o Google Calendar',
+            e.meetLink ? 'O join' : '',
+            p.editable && e.response ? 'Y/N/M reply' : '',
+            p.editable && e.mine ? 'e edit · dd delete' : '',
+            'Esc close',
+          ]
+            .filter(Boolean)
+            .join(' · '),
+          width - 4,
+        )}
       </Text>
     </Box>
   );

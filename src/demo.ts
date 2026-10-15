@@ -46,7 +46,11 @@ export class DemoSource implements EventSource {
     }
     this.events.push(
       ev(0, 'Billing review', at(0, 11, 30), at(0, 12, 30), {
-        description: '<p>Agenda:</p><ul><li>Eneba credit</li><li>Tax invoices</li></ul>',
+        description:
+          '<p>Agenda:</p><ul><li>Eneba credit</li><li>Tax invoices</li></ul>' +
+          '<p>Notes: <a href="https://docs.google.com/document/d/1AbCdEf/edit">billing doc</a>, ' +
+          'dashboard at https://example.com/billing?month=10.</p>',
+        meetLink: 'https://meet.google.com/xyz-abcd-efg',
         organizer: 'Finance',
         mine: false,
         response: 'needsAction',
