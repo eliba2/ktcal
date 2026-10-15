@@ -16,6 +16,8 @@ export interface CalendarRef {
   id: string;
   name: string;
   color: string;
+  /** You can add events to it (owner / writer). Filled in at startup when editing is on. */
+  writable?: boolean;
 }
 
 export interface Settings {

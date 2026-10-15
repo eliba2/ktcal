@@ -5,7 +5,7 @@ import { Canvas, truncate } from '../src/canvas.js';
 import { monthGrid, periodBounds, startOfWeek, visibleDays } from '../src/dates.js';
 import { DemoSource } from '../src/demo.js';
 import { eventsOnDay, fromGoogle, placeInLanes, type CalEvent } from '../src/events.js';
-import { htmlToText } from '../src/app.js';
+import { htmlToText } from '../src/text.js';
 import { renderMonth } from '../src/views/month.js';
 import { renderTimeGrid } from '../src/views/timegrid.js';
 
@@ -13,7 +13,7 @@ const day = DateTime.fromISO('2026-10-14'); // a Wednesday
 
 function timed(title: string, from: string, to: string): CalEvent {
   return {
-    key: title, calendarId: 'c', title, color: '#4285f4', declined: false, allDay: false,
+    key: title, calendarId: 'c', id: title, title, color: '#4285f4', declined: false, allDay: false, mine: true, recurring: false,
     start: DateTime.fromISO(`2026-10-14T${from}`), end: DateTime.fromISO(`2026-10-14T${to}`),
   };
 }
@@ -48,6 +48,22 @@ describe('events', () => {
     )!;
     expect(declined.declined).toBe(true);
     expect(declined.title).toBe('(no title)');
+  });
+
+  it('knows whether you own an event or were invited to it', () => {
+    const at = { start: { dateTime: '2026-10-14T09:00:00Z' }, end: { dateTime: '2026-10-14T10:00:00Z' } };
+    const solo = fromGoogle({ id: 's', ...at, organizer: { email: 'me@x', self: true } }, 'c', '#000000')!;
+    expect([solo.mine, solo.response, solo.recurring]).toEqual([true, undefined, false]);
+    const hosting = fromGoogle(
+      { id: 'h', ...at, organizer: { self: true }, attendees: [{ email: 'me@x', self: true, responseStatus: 'accepted' }, { email: 'b@x' }] },
+      'c', '#000000',
+    )!;
+    expect([hosting.mine, hosting.response]).toEqual([true, 'accepted']);
+    const invited = fromGoogle(
+      { id: 'i_20261014', ...at, recurringEventId: 'i', organizer: { email: 'boss@x' }, attendees: [{ email: 'me@x', self: true, responseStatus: 'needsAction' }] },
+      'c', '#000000',
+    )!;
+    expect([invited.mine, invited.response, invited.recurring, invited.id]).toEqual([false, 'needsAction', true, 'i_20261014']);
   });
 
   it('puts overlapping events side by side and lets later ones reuse free lanes', () => {

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import * as clack from '@clack/prompts';
 import { render } from 'ink';
 import { App } from './app.js';
-import { getAuthorizedClient, NotSetUpError, SCOPE, signIn, signOut } from './auth.js';
+import { canEdit, EDIT_SCOPE, getAuthorizedClient, NotSetUpError, SCOPE, signIn, signOut } from './auth.js';
 import { configDir, loadSettings, paths, readJson, saveSettings, type CalendarRef } from './config.js';
 import { listCalendars, name, toRef } from './google.js';
 import { demoCalendars, DemoSource } from './demo.js';
@@ -15,7 +15,8 @@ const USAGE = `ktcal — Google Calendar in the terminal (read-only)
 
 Usage:
   ktcal                      open the calendar (month view)
-  ktcal setup [client.json]  connect Google: install the OAuth client, sign in, pick calendars
+  ktcal setup [client.json]  connect Google (read-only): install the OAuth client, sign in, pick calendars
+  ktcal setup --edit         same, but also allow adding / deleting events and replying to invitations
   ktcal calendars            pick which calendars to show
   ktcal logout               revoke the token and delete it
   ktcal demo                 open with made-up events (no Google needed)
@@ -23,14 +24,14 @@ Usage:
 Config lives in ${configDir}`;
 
 async function main(argv: string[]): Promise<void> {
-  const [command, arg] = argv;
+  const [command, ...args] = argv;
   switch (command) {
     case undefined:
       return run();
     case 'demo':
       return run(true);
     case 'setup':
-      return setup(arg);
+      return setup(args.find((a) => !a.startsWith('-')), args.includes('--edit'));
     case 'calendars':
       return pickCalendars();
     case 'logout':
@@ -58,10 +59,16 @@ async function run(demo = false): Promise<void> {
     calendars = demoCalendars;
   } else {
     const client = await getAuthorizedClient();
+    const editable = await canEdit();
+    // The full list is needed when no calendars were picked, or (editing) to know which accept new events.
+    const all = !settings.calendars.length || editable ? await listCalendars(client) : [];
     calendars = settings.calendars.length
-      ? settings.calendars
-      : (await listCalendars(client)).filter((c) => c.selected && !c.hidden).map(toRef);
-    store = new EventStore(client, calendars, () => listener());
+      ? settings.calendars.map((c) => {
+          const google = all.find((g) => g.id === c.id);
+          return { ...c, writable: google ? toRef(google).writable : undefined };
+        })
+      : all.filter((c) => c.selected && !c.hidden).map(toRef);
+    store = new EventStore(client, calendars, () => listener(), editable);
   }
 
   // Full-screen: alternate buffer, restored however we exit.
@@ -76,7 +83,7 @@ async function run(demo = false): Promise<void> {
   restore();
 }
 
-async function setup(clientPath?: string): Promise<void> {
+async function setup(clientPath: string | undefined, edit: boolean): Promise<void> {
   clack.intro('ktcal setup');
 
   const source = clientPath ?? (await newestDownloadedClient());
@@ -95,8 +102,12 @@ async function setup(clientPath?: string): Promise<void> {
     return;
   }
 
-  clack.log.info(`Requesting read-only access (${SCOPE})`);
-  await signIn((msg) => clack.log.message(msg));
+  clack.log.info(
+    edit
+      ? `Requesting read access plus event editing (${SCOPE}, ${EDIT_SCOPE})`
+      : `Requesting read-only access (${SCOPE}); use \`ktcal setup --edit\` to allow changes`,
+  );
+  await signIn((msg) => clack.log.message(msg), edit);
   clack.log.success('Signed in');
   await pickCalendars(true);
 }

@@ -6,8 +6,10 @@ import type { AddressInfo } from 'node:net';
 import { CodeChallengeMethod, OAuth2Client, type Credentials } from 'google-auth-library';
 import { paths, readJson, writePrivateJson } from './config.js';
 
-/** Read-only: ktcal only displays events, so a leaked token can't change anything. */
+/** Read-only by default: a leaked token can't change anything. */
 export const SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
+/** Opt-in (`ktcal setup --edit`): create, change and delete events. Calendar settings stay read-only. */
+export const EDIT_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
 
 interface ClientFile {
   installed?: { client_id: string; client_secret: string };
@@ -22,6 +24,12 @@ async function loadClientSecrets(): Promise<{ clientId: string; clientSecret: st
 }
 
 export class NotSetUpError extends Error {}
+
+/** Whether the stored token carries the editing scope. */
+export async function canEdit(): Promise<boolean> {
+  const token = await readJson<Credentials>(paths.token);
+  return Boolean(token?.scope?.split(' ').includes(EDIT_SCOPE));
+}
 
 /** An OAuth client with stored credentials; refreshed tokens are persisted automatically. */
 export async function getAuthorizedClient(): Promise<OAuth2Client> {
@@ -40,7 +48,8 @@ export async function getAuthorizedClient(): Promise<OAuth2Client> {
  * Browser sign-in using the loopback flow for Desktop-app clients: a one-shot HTTP
  * server on 127.0.0.1 receives the code; PKCE + state guard the exchange.
  */
-export async function signIn(log: (msg: string) => void): Promise<void> {
+export async function signIn(log: (msg: string) => void, edit = false): Promise<void> {
+  const scopes = edit ? [SCOPE, EDIT_SCOPE] : [SCOPE];
   const secrets = await loadClientSecrets();
   const state = randomBytes(16).toString('hex');
 
@@ -79,7 +88,7 @@ export async function signIn(log: (msg: string) => void): Promise<void> {
     const url = client.generateAuthUrl({
       access_type: 'offline',
       prompt: 'consent', // always hand out a refresh token
-      scope: [SCOPE],
+      scope: scopes,
       state,
       code_challenge: codeChallenge,
       code_challenge_method: CodeChallengeMethod.S256,
@@ -93,8 +102,10 @@ export async function signIn(log: (msg: string) => void): Promise<void> {
     const code = await codePromise.finally(() => clearTimeout(timeout));
     const { tokens } = await client.getToken({ code, codeVerifier, redirect_uri: redirectUri });
     if (!tokens.refresh_token) throw new Error('Google returned no refresh token; try `ktcal setup` again');
-    if (tokens.scope && !tokens.scope.split(' ').includes(SCOPE)) {
-      throw new Error(`Granted scope was "${tokens.scope}", expected ${SCOPE}`);
+    const granted = tokens.scope?.split(' ');
+    const missing = granted && scopes.filter((s) => !granted.includes(s));
+    if (missing?.length) {
+      throw new Error(`Google didn't grant ${missing.join(', ')} (granted: "${tokens.scope}")`);
     }
     await writePrivateJson(paths.token, tokens);
   } finally {
